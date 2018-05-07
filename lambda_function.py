@@ -78,7 +78,7 @@ class CrawlerData(ActiveRecord):
         self.conn.commit()
 
     def close(self):
-        self.conn.close
+        self.conn.close()
 
     def exists(self, key, value):
         records = self.cursor().execute(
@@ -91,7 +91,7 @@ class CooperativeService:
     def __init__(self):
         self.service_name = os.environ.get("COOPERATIVE_SERVICE")
         self.url = os.environ.get("COOPERATIVE_SERVICE_URL")
-        self.expire_date = '2018/01/01'
+        self.expire_date = None
         self.path = ''
 
     def call(self):
@@ -104,7 +104,6 @@ class CooperativeService:
         self.title = doc.xpath("/html/body/section/div[2]/div/div[2]/div/div[2]/h2")[0].text
         crawler_data = CrawlerData(self.__dict__)
         crawler_data.save()
-
 
 def lambda_handler(event, context):
     cooperative_service = CooperativeService()
@@ -124,5 +123,4 @@ def lambda_handler(event, context):
             raise
 
     cooperative_service.scraping(file_path)
-    cooperative_service.close
     print("sucess!!")
