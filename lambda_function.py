@@ -123,4 +123,4 @@ def lambda_handler(event, context):
             raise
 
     cooperative_service.scraping(file_path)
-    print("sucess!!")
+    print("success!!")
