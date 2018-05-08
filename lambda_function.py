@@ -5,10 +5,12 @@ import settings
 import boto3
 import botocore
 import logging
+import re
 from datetime import datetime
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
 
 class ActiveRecord:
     def __init__(self, args={}):
@@ -73,8 +75,7 @@ class CrawlerData(ActiveRecord):
              self.service_name,
              self.expire_date,
              datetime.now(),
-             datetime.now()
-             ))
+             datetime.now()))
         self.conn.commit()
 
     def close(self):
@@ -88,9 +89,11 @@ class CrawlerData(ActiveRecord):
 
 
 class CooperativeService:
-    def __init__(self):
+    def __init__(self, file_name):
+        self.file_name = file_name
         self.service_name = os.environ.get("COOPERATIVE_SERVICE")
-        self.url = os.environ.get("COOPERATIVE_SERVICE_URL")
+        self.url = os.environ.get(
+            "COOPERATIVE_SERVICE_URL") + "/" + primary_id()
         self.expire_date = None
         self.path = ''
 
@@ -100,17 +103,23 @@ class CooperativeService:
     def scraping(self, file_name):
         self.raw_data = open(file_name, 'r').read()
         doc = lxml.html.fromstring(self.raw_data)
-        self.price = doc.xpath("/html/body/section/div[2]/div/div[2]/div/div[5]/dl[2]/dd")[0].text
-        self.title = doc.xpath("/html/body/section/div[2]/div/div[2]/div/div[2]/h2")[0].text
+        self.price = doc.xpath(
+            "/html/body/section/div[2]/div/div[2]/div/div[5]/dl[2]/dd")[0].text
+        self.title = doc.xpath(
+            "/html/body/section/div[2]/div/div[2]/div/div[2]/h2")[0].text
         crawler_data = CrawlerData(self.__dict__)
         crawler_data.save()
 
+    def primary_id(self):
+        re.match(r"\d*_(\d*)\.html", file_name).groups()[0]
+
+
 def lambda_handler(event, context):
-    cooperative_service = CooperativeService()
     file_name = event['Records'][0]['s3']['object']['key']
     BUCKET_NAME = event['Records'][0]['s3']['bucket']['name']
     s3 = boto3.resource('s3')
     file_path = "/tmp/" + file_name
+    cooperative_service = CooperativeService(file_name)
 
     print("run scraping lambda")
 
