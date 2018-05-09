@@ -93,15 +93,15 @@ class CooperativeService:
         self.file_name = file_name
         self.service_name = os.environ.get("COOPERATIVE_SERVICE")
         self.url = os.environ.get(
-            "COOPERATIVE_SERVICE_URL") + "/" + primary_id()
+            "COOPERATIVE_SERVICE_URL") + "/" + str(self.primary_id())
         self.expire_date = None
         self.path = ''
 
     def call(self):
         pass
 
-    def scraping(self, file_name):
-        self.raw_data = open(file_name, 'r').read()
+    def scraping(self):
+        self.raw_data = open(self.file_path(), 'r').read()
         doc = lxml.html.fromstring(self.raw_data)
         self.price = doc.xpath(
             "/html/body/section/div[2]/div/div[2]/div/div[5]/dl[2]/dd")[0].text
@@ -111,25 +111,28 @@ class CooperativeService:
         crawler_data.save()
 
     def primary_id(self):
-        re.match(r"\d*_(\d*)\.html", file_name).groups()[0]
+        re.match(r"\d*_(\d*)\.html", self.file_name).groups()[0]
+
+    def file_path(self):
+        return "/tmp/" + self.file_name
 
 
 def lambda_handler(event, context):
     file_name = event['Records'][0]['s3']['object']['key']
     BUCKET_NAME = event['Records'][0]['s3']['bucket']['name']
     s3 = boto3.resource('s3')
-    file_path = "/tmp/" + file_name
     cooperative_service = CooperativeService(file_name)
 
     print("run scraping lambda")
 
     try:
-        s3.Bucket(BUCKET_NAME).download_file(file_name, file_path)
+        s3.Bucket(BUCKET_NAME).download_file(
+            file_name, cooperative_service.file_path())
     except botocore.exceptions.ClientError as e:
         if e.response['Error']['Code'] == "404":
             print("The object does not exist.")
         else:
             raise
 
-    cooperative_service.scraping(file_path)
+    cooperative_service.scraping()
     print("success!!")
